@@ -8,11 +8,10 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-#define POSTFIX_LEN 4
-#define SIZE 1024 * 1024 / 4
-#define BUF_SIZE 1000
-#define FILE_SIZE 1024 /* FILE_SIZE % 4 == 0 */
-#define COMMAND_LEN 100
+#define POSTFIX_LEN 4                   /* Postfix length of splitted files */
+#define SIZE 1024 * 1024 / sizeof (int) /* How many int will be in generated file */
+#define BUF_SIZE 1000                   /* Max size of ints array */
+#define FILE_SIZE 1024 / sizeof (int)   /* How many ints our file can handle 	  */
 
 void swap (int *x, int *y)
 {
@@ -60,15 +59,6 @@ int print_file (char *name)
 	return 0;
 }
 
-int split_file (char *name)
-{
-	char command[COMMAND_LEN];
-	sprintf (command, "split -d -b %d -a %d %s", FILE_SIZE, POSTFIX_LEN, name);
-	if (system (command) == -1)
-		return 1;
-	return 0;
-}
-
 void generate_file_name (char *name, int n)
 {
 	int j, cnt = 1;
@@ -81,9 +71,42 @@ void generate_file_name (char *name, int n)
 	name[POSTFIX_LEN + 1] = '\0';
 }
 
+int split_file (char *name, int cnt)
+{
+	int i, fd, fdp, bytesread, readtotal = 0, buf[BUF_SIZE];
+	char spname[POSTFIX_LEN + 2];
+
+	if ((fd = open (name, O_RDONLY)) == -1)
+	{
+		perror ("Error opening file");
+		return 1;
+	}
+
+	for (i = 0; i < cnt; i++)
+	{
+		generate_file_name (spname, i);
+		if ((fdp = open (spname, O_WRONLY | O_CREAT | O_TRUNC, 0666)) == -1)
+		{
+			perror ("Error opening file");
+			return 1;
+		}
+		while (BUF_SIZE * sizeof (int) + readtotal <= FILE_SIZE)
+		{
+			readtotal += bytesread = read (fd, &buf, BUF_SIZE * sizeof (int));
+			write (fdp, &buf, bytesread);
+		}
+		bytesread = read (fd, &buf, FILE_SIZE * sizeof (int) - readtotal);
+		write (fdp, &buf, bytesread);
+		close (fdp);
+	}
+
+	close (fd);
+	return 0;
+}
+
 int sort_file (char *name)
 {
-	int fd, cnt, i, j, arr[FILE_SIZE / sizeof (int)];
+	int fd, cnt, i, j, arr[FILE_SIZE];
 
 	if ((fd = open (name, O_RDWR)) == -1)
 	{
@@ -92,7 +115,7 @@ int sort_file (char *name)
 	}
 
 	cnt = 0;
-	cnt = read (fd, &arr, FILE_SIZE) / sizeof (int);
+	cnt = read (fd, &arr, FILE_SIZE * sizeof (int)) / sizeof (int);
 
 	for (i = 0; i < cnt; i++)
 		for (j = 0; j < cnt - i - 1; j++)
@@ -214,11 +237,11 @@ int main ()
 
 	if (generate_file (name))
 		return 1;
-	if (split_file (name))
+	cnt = (get_file_size (name) - 1) / (FILE_SIZE * sizeof (int)) + 1;
+	if (split_file (name, cnt))
 		return 1;
 	puts ("Done splitting files");
 
-	cnt = (get_file_size (name) - 1) / FILE_SIZE + 1;
 	for (i = 0; i < cnt; i++)
 	{
 		generate_file_name (spname, i);

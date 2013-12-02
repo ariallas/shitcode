@@ -35,6 +35,8 @@ void play(int to, int from, char *who)
 
 void signal_handler(int sig)
 {
+	signal(SIGINT, signal_handler);
+	signal(SIGPIPE, signal_handler);
 	stop = 1;
 }
 

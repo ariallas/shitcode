@@ -11,6 +11,7 @@ int stop = 0;
 
 void signal_handler(int sig)
 {
+	signal(SIGINT, signal_handler);
 	stop = 1;
 }
 
