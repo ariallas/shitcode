@@ -1,0 +1,6 @@
+1) clear_string - removes similar substrings that goes one after another from the string (or something like that)
+2) file_sort	- file bubble sort with keeping only to of its elements in memory
+3) file_extsort - file external sort (sorting a file, which is larger than our available RAM)
+4) ping-pong	- ping pong of 3 processes with int ball, until SIGINT
+5) ipcmain
+   ipcnotmain	- ping pong of 2 processes using ipc semaphores and shared memory
